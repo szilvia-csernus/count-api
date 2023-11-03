@@ -76,7 +76,7 @@ async def increment_page_visit(
 
         else:
             return JSONResponse(
-                content={"message": "Page not found in database"},
+                content={"message": f"{request_url}  not found in database"},
                 status_code=404)
 
     except Exception as e:
