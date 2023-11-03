@@ -1,68 +1,87 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi import FastAPI, Depends, Request
+from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
-import databases
+import models
+from database import SessionLocal, engine
+from sqlalchemy.orm import Session
+
 import os
+
 from dotenv import load_dotenv
-
 load_dotenv()
+
 app = FastAPI()
-database = databases.Database(os.getenv('DATABASE_URL'))
+models.Base.metadata.create_all(bind=engine)
 
 
-@app.get("/visit/{page_name}")
-async def increment_page_visit(page_name: str, request: Request):
+# Pydantic model
+class Visit(BaseModel):
+    page: str
+    count: int
+    last_visit: str
+
+
+def get_db_session() -> Session:
+    try:
+        db = SessionLocal()
+        yield db
+    finally:
+        db.close()
+
+
+# CORS configuration
+origins = [
+    "http://localhost:3000",
+    os.getenv('MY_APP_HOST_1'),
+]
+
+# Add the CORS middleware to the FastAPI app
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/visit/")
+async def increment_page_visit(
+            request: Request, db: Session = Depends(get_db_session)):
     # Extract the URL from the request headers
     request_url = str(request.url)
+    print(request_url)
     current_date = date.today()
 
-    # Check if the request URL matches the specified page_name
-    if request_url == page_name:
-        # Query to fetch the count and last_visit for the specified page_name
-        query = "SELECT count, last_visit FROM page_visits \
-                WHERE page_name = :page_name"
-        values = {"page_name": page_name}
+    # Query to fetch the count and last_visit for the specified page_name
+    page = db.query(models.Visits).filter_by(page=request_url).first()
 
-        # Execute the query
-        result = await database.fetch_one(query=query, values=values)
-
-        if result:
-            last_visit = result['last_visit']
+    if page:
+        last_visit_month = None
+        last_visit = page.last_visit
+        if last_visit is not None:
             last_visit_month = last_visit.month
-            current_month = current_date.month
+        current_month = current_date.month
 
-            if last_visit_month != current_month:
-                # If the last visit was in a different month, reset the count
-                query = "UPDATE page_visits SET count = 1, \
-                    last_visit = :current_date \
-                    WHERE page_name = :page_name RETURNING count, last_visit"
-            else:
-                # Otherwise, increment the count and update the last_visit
-                query = "UPDATE page_visits \
-                    SET count = count + 1, \
-                    last_visit = :current_date \
-                    WHERE page_name = :page_name RETURNING count, last_visit"
-
-            # Update the count and last_visit in the database
-            values = {"page_name": page_name, "current_date": current_date}
-            updated_result = await database.fetch_one(query=query,
-                                                      values=values)
-
-            if updated_result:
-                updated_count = updated_result['count']
-                last_visit = updated_result['last_visit']
-                return JSONResponse(content={"count": updated_count,
-                                             "last_visit": last_visit},
-                                    status_code=200)
-            else:
-                return JSONResponse(
-                    content={"message": "Page not found in database"},
-                    status_code=404)
+        if last_visit_month != current_month:
+            # If the last visit was in a different month, reset the count
+            page.count = 1
         else:
-            return JSONResponse(
-                content={"message": "Page not found in database"},
-                status_code=404)
+            # Otherwise, increment the count and update the last_visit
+            page.count += 1
+
+        # Update the count and last_visit in the database
+        page.last_visit = current_date
+
+        db.commit()
+        # db.refresh(page)
+
+        return JSONResponse(content={"count": page.count},
+                            status_code=200)
+
     else:
-        return HTMLResponse(
-            content="Request URL does not match the specified page_name",
-            status_code=400)
+        return JSONResponse(
+            content={"message": "Page not found in database"},
+            status_code=404)

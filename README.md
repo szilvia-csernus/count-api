@@ -29,7 +29,7 @@ The counter always updates the last visit's date and resets the counter to 1 if 
 
 To run the server on a local development server:
 
-`uvicorn page_visits_app:app --reload`
+`uvicorn main:app --reload`
 
 ---
 
