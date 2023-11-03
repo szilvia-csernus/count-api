@@ -33,7 +33,7 @@ def get_db_session() -> Session:
 
 # CORS configuration
 origins = [
-    "http://localhost:3000",
+    # "http://localhost:3000", # For testing local react application
     os.getenv('MY_APP_HOST_1'),
 ]
 
