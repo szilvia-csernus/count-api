@@ -49,39 +49,37 @@ app.add_middleware(
 
 @app.get("/visit/")
 async def increment_page_visit(
-            request: Request, db: Session = Depends(get_db_session)):
-    # Extract the URL from the request headers
-    request_url = str(request.url)
-    print(request_url)
-    current_date = date.today()
+        request: Request, db: Session = Depends(get_db_session)):
+    try:
+        request_url = str(request.url)
+        print(request_url)
+        current_date = date.today()
 
-    # Query to fetch the count and last_visit for the specified page_name
-    page = db.query(models.Visits).filter_by(page=request_url).first()
+        page = db.query(models.Visits).filter_by(page=request_url).first()
 
-    if page:
-        last_visit_month = None
-        last_visit = page.last_visit
-        if last_visit is not None:
-            last_visit_month = last_visit.month
-        current_month = current_date.month
+        if page:
+            last_visit_month = None
+            last_visit = page.last_visit
+            if last_visit is not None:
+                last_visit_month = last_visit.month
+            current_month = current_date.month
 
-        if last_visit_month != current_month:
-            # If the last visit was in a different month, reset the count
-            page.count = 1
+            if last_visit_month != current_month:
+                page.count = 1
+            else:
+                page.count += 1
+
+            page.last_visit = current_date
+            db.commit()
+
+            return JSONResponse(content={"count": page.count}, status_code=200)
+
         else:
-            # Otherwise, increment the count and update the last_visit
-            page.count += 1
+            return JSONResponse(
+                content={"message": "Page not found in database"},
+                status_code=404)
 
-        # Update the count and last_visit in the database
-        page.last_visit = current_date
-
-        db.commit()
-        # db.refresh(page)
-
-        return JSONResponse(content={"count": page.count},
-                            status_code=200)
-
-    else:
-        return JSONResponse(
-            content={"message": "Page not found in database"},
-            status_code=404)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return JSONResponse(content={"message": "Internal Server Error"},
+                            status_code=500)
