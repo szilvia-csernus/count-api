@@ -51,11 +51,11 @@ app.add_middleware(
 async def increment_page_visit(
         request: Request, db: Session = Depends(get_db_session)):
     try:
-        request_url = str(request.url)
-        print(request_url)
+        referer_url = request.headers.get("Referer")
+        print(referer_url)
         current_date = date.today()
 
-        page = db.query(models.Visits).filter_by(page=request_url).first()
+        page = db.query(models.Visits).filter_by(page=referer_url).first()
 
         if page:
             last_visit_month = None
@@ -76,7 +76,7 @@ async def increment_page_visit(
 
         else:
             return JSONResponse(
-                content={"message": f"{request_url}  not found in database"},
+                content={"message": f"{referer_url}  not found in database"},
                 status_code=404)
 
     except Exception as e:
