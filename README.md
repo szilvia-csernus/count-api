@@ -16,7 +16,7 @@ The counter always updates the last visit's date and resets the counter to 1 if 
 
 ## Python Packages Used
 
-`fastapi`, `uvicorn`, `databases`, `asyncpg`
+`fastapi`, `uvicorn`, `pydantic`, `sqlalchemy`, `asyncpg`, `psycopg2-binary`, `psycopg2`, `databases`, `python-dotenv`
 
 ---
 
