@@ -35,6 +35,7 @@ def get_db_session() -> Session:
 origins = [
     # "http://localhost:3000", # For testing local react application
     os.getenv('MY_APP_HOST_1'),
+    os.getenv('MY_APP_HOST_2'),
 ]
 
 # Add the CORS middleware to the FastAPI app
